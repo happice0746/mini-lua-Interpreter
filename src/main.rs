@@ -1,3 +1,11 @@
+mod core;
+use std::{env, fs::File};
+
 fn main() {
-    println!("Hello, world!");
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("usage: {} script", args[0]);
+        return
+    }
+    let file = File::open(&args[1]).unwrap();
 }
