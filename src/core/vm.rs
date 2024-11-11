@@ -49,6 +49,18 @@ impl ExeState {
                 ByteCode::LoadGlobal(dst, c) => {
                     let v = proto.constants[c as usize].clone();
                     self.set_stack(dst, v);
+                },
+                ByteCode::LoadNil(dst) => {
+                    self.set_stack(dst, Value::Nil);
+                }
+                ByteCode::LoadBool(dst, b) => {
+                    self.set_stack(dst, Value::Boolean(b));
+                }
+                ByteCode::LoadInt(dst, i) => {
+                    self.set_stack(dst, Value::Integer(i as i64));
+                }
+                _ => {
+                    
                 }
             }
         }
