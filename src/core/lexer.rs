@@ -79,19 +79,7 @@ impl Lexer {
     pub fn next(&mut self) -> Token {
         let ch = self.read_char();
         match ch {
-            '"' => {
-                let mut s = String::new();
-                loop {
-                    match self.read_char() {
-                        '\0' => panic!("unfinished literal string"),
-                        '"' => break,
-                        ch => s.push(ch),
-                    }
-                }
-                Token::String(s)
-            },
             '+' => Token::Add,
-            '-' => Token::Sub,
             '*' => Token::Mul,
             '%' => Token::Mod,
             '^' => Token::Pow,
@@ -106,6 +94,8 @@ impl Lexer {
             '}' => Token::SqurR,
             ';' => Token::SemiColon,
             ',' => Token::Comma,
+            '\'' | '"' => self.read_string(ch),
+            '-' => Token::Sub,
             ':' => self.check_ahead_condition(':', Token::DoubColon, Token::Colon),
             '~' => self.check_ahead_condition('=', Token::NotEq, Token::BitXor),
             '=' => self.check_ahead_condition('=', Token::Equal, Token::Assign),
@@ -114,8 +104,8 @@ impl Lexer {
             '<' => self.check_ahead_conditions('<', Token::ShiftL, '=', Token::LesEq, Token::Less),
             ' ' | '\r' | '\n' | '\t' => self.next(),
             '\0' => Token::EOS,
-            'a'..='z' | 'A'..='Z'  | '_' => self.read_name(ch),
-            '0'..='9' => self.read_number(),
+            'a'..='z' | 'A'..='Z' | '_' => self.read_name(ch),
+            '0'..='9' => self.read_number(ch),
             _ => {
                 panic!("expected char")
             }
@@ -156,8 +146,54 @@ impl Lexer {
         }
     }
 
-    fn read_number(&mut self) -> Token {
-        Token::Integer(1)
+    fn read_string (&mut self, quote: char) -> Token {
+        let mut s = String::new();
+        loop {
+            let ch = self.read_char();
+            match ch {
+                '\0' => panic!("unfinished literal string"),
+                ch if quote == ch => break,
+                ch => s.push(ch),
+            }
+        }
+        Token::String(s)
+    }
+
+    fn read_number(&mut self, ch: char) -> Token {
+        if ch == '0' {
+            let next_ch = self.read_char();
+           if next_ch == 'x' || next_ch == 'X' {
+               self.handle_hex();
+            } 
+            self.back_char();
+        }
+        let mut sum = char::to_digit(ch, 10).unwrap();
+        loop {
+            let next_ch =  self.read_char();
+            if let Some(n) = next_ch.to_digit(10) {
+                sum = sum * 10 + n;
+            } else if next_ch == '.' {
+                return self.handle_fraction(sum as i64);
+            } else if next_ch == 'e' || next_ch == 'E' {
+                return self.handle_exp();
+            } else {
+                self.back_char();
+                break;
+            }
+        }
+        Token::Integer(sum as i64)
+    }
+
+    fn handle_hex(&mut self) {
+        let n = char::to_digit(self.read_char(), 16).unwrap();
+    }
+
+    fn handle_fraction(&mut self, int_part: i64) -> Token {
+        Token::Integer(int_part)
+    }
+
+    fn handle_exp(&mut self) -> Token {
+       todo!()
     }
 
     fn read_name(&mut self, ch: char) -> Token {
@@ -167,10 +203,9 @@ impl Lexer {
             match self.read_char() {
                 '\0' => break,
                 '_' => name.push('_'),
-                ')' => break,
                 ch if ch.is_alphanumeric() => name.push(ch),
                 _ => {
-                    self.input.seek(SeekFrom::Current(-1)).unwrap();
+                    self.back_char();
                     break;
                 }
             }
@@ -194,6 +229,9 @@ impl Lexer {
             "until" => Token::Until,
             "while" => Token::While,
             "do" => Token::Do,
+            "true" => Token::True,
+            "false" => Token::False,
+            "Nil" => Token::Nil,
             _ => Token::Name(name)
         }
         

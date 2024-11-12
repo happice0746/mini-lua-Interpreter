@@ -64,7 +64,6 @@ pub fn load(input: File) -> ParseProto {
                         byte_codes.push(code);
                         match lexer.next() {
                             Token::ParR => {
-                                
                             }
                             _ => {
                                 panic!("expected `)`");
