@@ -9,7 +9,7 @@ fn main() {
         return
     }
     let file = File::open(&args[1]).unwrap();
-    let proto = parser::load(file);
+    let proto = parser::ParseProto::load(file);
     let mut exe = ExeState::new();
     exe.execute(&proto);
 }

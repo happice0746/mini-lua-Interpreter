@@ -1,7 +1,8 @@
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::mem;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     // keywords
     And,
@@ -70,13 +71,32 @@ pub enum Token {
 #[derive(Debug)]
 pub struct Lexer {
     input: File,
+    ahead: Token
 }
 
 impl Lexer {
     pub fn new(input: File) -> Self {
-        Lexer { input }
+        Lexer { 
+            input,
+            ahead: Token::EOS
+        }
     }
     pub fn next(&mut self) -> Token {
+        if self.ahead == Token::EOS {
+            self.do_next()
+        } else {
+            mem::replace(&mut self.ahead, Token::EOS)
+        }
+    }
+
+    pub fn peek(&mut self) -> &Token {
+        if self.ahead == Token::EOS {
+            self.ahead = self.do_next();
+        }
+        &self.ahead
+    }
+
+    pub fn do_next(&mut self) -> Token {
         let ch = self.read_char();
         match ch {
             '+' => Token::Add,
@@ -94,8 +114,17 @@ impl Lexer {
             '}' => Token::SqurR,
             ';' => Token::SemiColon,
             ',' => Token::Comma,
+            '\0' => Token::EOS,
             '\'' | '"' => self.read_string(ch),
-            '-' => Token::Sub,
+            '-' => {
+                if self.read_char() == '-' {
+                    self.read_comment();
+                    self.next()
+                } else {
+                    self.back_char();
+                    Token::Sub
+                }
+            },
             ':' => self.check_ahead_condition(':', Token::DoubColon, Token::Colon),
             '~' => self.check_ahead_condition('=', Token::NotEq, Token::BitXor),
             '=' => self.check_ahead_condition('=', Token::Equal, Token::Assign),
@@ -103,7 +132,6 @@ impl Lexer {
             '>' => self.check_ahead_conditions('>', Token::ShiftR, '=', Token::GreEq, Token::Greater),
             '<' => self.check_ahead_conditions('<', Token::ShiftL, '=', Token::LesEq, Token::Less),
             ' ' | '\r' | '\n' | '\t' => self.next(),
-            '\0' => Token::EOS,
             'a'..='z' | 'A'..='Z' | '_' => self.read_name(ch),
             '0'..='9' => self.read_number(ch),
             _ => {
@@ -157,6 +185,10 @@ impl Lexer {
             }
         }
         Token::String(s)
+    }
+
+    fn read_comment(&mut self) -> Token {
+        todo!()
     }
 
     fn read_number(&mut self, ch: char) -> Token {
